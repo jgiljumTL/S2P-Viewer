@@ -10,46 +10,52 @@ def main():
     root = tk.Tk()
     fname = askopenfilename()
     root.wm_title(fname)
-    header, data = read_s2p(fname)
-    
-    frame = tk.Frame(root)
-    frame.grid(row=0, column=0, sticky="n")
-    
-    opt1_val = tk.StringVar()
-    opt1_val.set("freq")
-    opt2_val = tk.StringVar()
-    opt2_val.set("s11db")
-    
-    label1 = tk.Label(frame, text="X axis").grid(row=0, column=1, sticky="nw")
-    label2 = tk.Label(frame, text="Y axis").grid(row = 1, column=1, sticky="w")
-    
-    option1 = tk.OptionMenu(frame, opt1_val, *Datum.attributes())
-    option1.grid(row=0, column=0, sticky="nwe")
-    option2 = tk.OptionMenu(frame, opt2_val, *Datum.attributes())
-    option2.grid(row=1, column=0, sticky="we")
-    opt1_val.trace('w', lambda*_:change_dropdown(data, opt1_val.get(), opt2_val.get(), fname, canvas))
-    opt2_val.trace('w', lambda*_:change_dropdown(data, opt1_val.get(), opt2_val.get(), fname, canvas))
-##    update_button = tk.Button(frame, text="Update", command=lambda:change_dropdown(data, opt1_val.get(), opt2_val.get(), fname, canvas)).grid(row=2, column=0, sticky="we")
+    app = Application(master=root, fname=fname)
+    app.mainloop()
 
-    root.columnconfigure(2, weight = 1)
-    root.rowconfigure(0, weight=1)
+class Application(tk.Frame):
+    def create_widgets(self):
+        self.header, self.data = read_s2p(self.fname)
+        
+        #initialize string variables and set deafults for drop down menus
+        self.opt1_val = tk.StringVar()
+        self.opt1_val.set("freq")
+        self.opt2_val = tk.StringVar()
+        self.opt2_val.set("s11db")
+        #create and place the labels 
+        self.label1 = tk.Label(self, text="X axis").grid(row=0, column=1, sticky="nw")
+        self.label2 = tk.Label(self, text="Y axis").grid(row = 1, column=1, sticky="w")
+        #create and place the option menus. Use trace to track the currently selected option
+        self.option1 = tk.OptionMenu(self, self.opt1_val, *Datum.attributes())
+        self.option1.grid(row=0, column=0, sticky="nwe")
+        self.option2 = tk.OptionMenu(self, self.opt2_val, *Datum.attributes())
+        self.option2.grid(row=1, column=0, sticky="we")
+        self.opt1_val.trace('w', self.change_dropdown)
+        self.opt2_val.trace('w', self.change_dropdown)
+        #trace lets the plot auto-update. For a vintage feel, this update button can created and placed:
+    ##    self.update_button = tk.Button(frame, text="Update", command=lambda:change_dropdown(data, opt1_val.get(), opt2_val.get(), fname, canvas)).grid(row=2, column=0, sticky="we")
+        #changing the weight of the cell the canvas is in gives it priority when resizing the window
+        self.master.columnconfigure(2, weight = 1)
+        self.master.rowconfigure(0, weight=1)
+        #create the plot and get the figure object
+        plot(self.data, self.opt1_val.get(), self.opt2_val.get(), self.fname)
+        self.fig = plt.gcf()
+        #create the canvas, display it, and place it
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().grid(row=0, column=2, sticky="nsew")
 
-    plot(data, opt1_val.get(), opt2_val.get(), fname)
-    fig = plt.gcf()
-    
-    canvas = FigureCanvasTkAgg(fig, master=root)
-    canvas.draw()
-    canvas.get_tk_widget().grid(row=0, column=2, sticky="nsew")
+    def change_dropdown(self, *args):
+        plt.clf()
+        plot(self.data, self.opt1_val.get(), self.opt2_val.get(), self.fname)
+        self.canvas.draw()
 
-    
-
-    
-    root.mainloop()
-def change_dropdown(data, opt1, opt2, fname, canvas, *args):
-    plt.clf()
-    plot(data, opt1, opt2, fname)
-    canvas.draw()
-    
+    def __init__(self, master = None, fname=None):
+        tk.Frame.__init__(self, master)
+        self.fname = fname
+        self.grid(row=0, column=0, sticky="n")
+        self.create_widgets()
+        
 def read_s2p(fname):
     with open(fname, 'r') as f:
         lines = f.readlines()
