@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg)
 
 #To Do
-#refactor application class now that file class exists
+#modify to plot multiple axes on the same figure
+#having issues updating the canvas after updating the axes. line 52
 
 def main():
     root = tk.Tk()
@@ -22,12 +23,12 @@ class Application(tk.Frame):
         self.opt1_val = tk.StringVar()
         self.opt1_val.set("freq")
         self.opt2_val = tk.StringVar()
-        self.opt2_val.set("s11db")
+        self.opt2_val.set("s21db")
         #canvas needs to be created after opt1_val and opt2_val have been initialized
         #and before trace calls change_dropdown)        
-        canvas1 = self.create_canvas(file, 0, 2)
-        canvas2 = self.create_canvas(file, 1, 2)
-        canvases = [canvas1, canvas2]
+        canvas = self.create_canvas(file, 0, 2)
+        print(self.files_axs.keys())
+        print(self.files_axs.values())
         #create and place the labels 
         self.label1 = tk.Label(self, text="X axis").grid(row=0, column=1, sticky="nw")
         self.label2 = tk.Label(self, text="Y axis").grid(row = 1, column=1, sticky="w")
@@ -36,34 +37,41 @@ class Application(tk.Frame):
         self.option1.grid(row=0, column=0, sticky="nwe")
         self.option2 = tk.OptionMenu(self, self.opt2_val, *Datum.attributes())
         self.option2.grid(row=1, column=0, sticky="we")
-        self.opt1_val.trace('w', lambda*_:self.change_dropdown(file, canvases))
-        self.opt2_val.trace('w', lambda*_:self.change_dropdown(file, canvases))
+        self.opt1_val.trace('w', lambda*_:self.change_dropdown(self.files_axs, canvas))
+        self.opt2_val.trace('w', lambda*_:self.change_dropdown(self.files_axs, canvas))
         #trace lets the plot auto-update. For a vintage feel, this update button can created and placed:
     ##    self.update_button = tk.Button(frame, text="Update", command=lambda:change_dropdown(data, opt1_val.get(), opt2_val.get(), fname, canvas)).grid(row=2, column=0, sticky="we")
         
         
 
-    def change_dropdown(self, file, canvases, *args):
-        for canvas in canvases:
-            plt.clf()
-            file.plot(self.opt1_val.get(), self.opt2_val.get())
-            canvas.draw()
+    def change_dropdown(self, fax_dict, canvas, *args):
+        for file in fax_dict.keys(): #this allows for multiple canvases
+            fax_dict[file].clear()
+            fax_dict[file] = file.plot(self.opt1_val.get(), self.opt2_val.get(),fax_dict[file])
+            plt.show()#this gives me what I want so the issue must be with the gui not displaying the new plot
+            self.canvas.draw()  #OFFENDING LINE
+            
 
     def create_canvas(self, file, row, col):
         #changing the weight of the cell the canvas is in gives it priority when resizing the window
         self.master.columnconfigure(col, weight = 1)
         self.master.rowconfigure(row, weight=1)
         #create the plot and get the figure object
-        file.plot(self.opt1_val.get(), self.opt2_val.get())
+        self.add_file(file)
         self.fig = plt.gcf()
         #create the canvas, display it, and place it
-        canvas = FigureCanvasTkAgg(self.fig, master=self.master)
-        canvas.draw()
-        canvas.get_tk_widget().grid(row=row, column=col, sticky="nsew")
-        return canvas
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().grid(row=row, column=col, sticky="nsew")
+        return self.canvas
+    
+    def add_file(self, file):
+        ax = file.plot(self.opt1_val.get(), self.opt2_val.get())
+        self.files_axs.update({file: ax})
 
     def __init__(self, master = None, fname = None):
         self.fname = fname
+        self.files_axs = {}
         tk.Frame.__init__(self, master)
         self.grid(row=0, column=0, sticky="n")
         self.create_widgets()
@@ -91,16 +99,20 @@ class File:
         self.header, self.data = self.read_s2p(self.fname)
     def list_attribute(self, attr):
         return [getattr(datum, attr) for datum in self.data]
-    def plot_attributes(self, attr1, attr2, **kwargs):
+    def plot_attributes(self, attr1, attr2, ax=None, **kwargs):
         x = self.list_attribute(attr1)
         y = self.list_attribute(attr2)
-        plot2d = plt.plot(x, y, **kwargs)
-        return
-    def plot(self, attr1, attr2, **kwargs):
-        plot2d = self.plot_attributes(attr1, attr2, color='green')
-        plt.xlabel(attr1)
-        plt.ylabel(attr2)
-        plt.title(self.fname)
+        if ax is None:
+            fig, ax = plt.subplots() 
+        ax.plot(x, y, **kwargs)
+        return ax
+    def plot(self, attr1, attr2, ax=None, **kwargs):
+        ax = self.plot_attributes(attr1, attr2, **kwargs)
+        ax.set_xlabel(attr1)
+        ax.set_ylabel(attr2)
+        #when the code can read multiple files the next line may be an issue
+        ax.set_title(self.fname)
+        return ax
     def read_s2p(self, fname):
         with open(fname, 'r') as f:
             lines = f.readlines()
