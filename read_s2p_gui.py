@@ -37,18 +37,20 @@ class Application(tk.Frame):
         self.option1.grid(row=0, column=0, sticky="nwe")
         self.option2 = tk.OptionMenu(self, self.opt2_val, *Datum.attributes())
         self.option2.grid(row=1, column=0, sticky="we")
-        self.opt1_val.trace('w', lambda*_:self.change_dropdown(self.files_axs, canvas))
-        self.opt2_val.trace('w', lambda*_:self.change_dropdown(self.files_axs, canvas))
+        self.opt1_val.trace('w', lambda*_:self.change_dropdown(self.files_axs))
+        self.opt2_val.trace('w', lambda*_:self.change_dropdown(self.files_axs))
         #trace lets the plot auto-update. For a vintage feel, this update button can created and placed:
     ##    self.update_button = tk.Button(frame, text="Update", command=lambda:change_dropdown(data, opt1_val.get(), opt2_val.get(), fname, canvas)).grid(row=2, column=0, sticky="we")
         
         
 
-    def change_dropdown(self, fax_dict, canvas, *args):
+    def change_dropdown(self, fax_dict, *args):
         for file in fax_dict.keys(): #this allows for multiple canvases
             fax_dict[file].clear()
-            fax_dict[file] = file.plot(self.opt1_val.get(), self.opt2_val.get(),fax_dict[file])
-            plt.show()#this gives me what I want so the issue must be with the gui not displaying the new plot
+            ax = file.plot(self.opt1_val.get(), self.opt2_val.get(),fax_dict[file])
+            fax_dict.update({file:ax})
+            #plt.show()#this gives me what I want so the issue must be with the gui not displaying the new plot
+            #plt.gcf()
             self.canvas.draw()  #OFFENDING LINE
             
 
